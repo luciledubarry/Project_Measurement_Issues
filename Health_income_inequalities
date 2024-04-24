@@ -1,0 +1,230 @@
+*** Paper Measurement Issues
+sysdir set PLUS "H:\Measurement Issues\easySHARE release 8"
+cd "H:\Measurement Issues\easySHARE release 8"
+use "easySHARE_rel8-0-0.dta", clear
+
+***************************************************************************************************************************************************************
+* Data Cleaning:
+***************************************************************************************************************************************************************
+*keep the variables of interest:
+drop country_mod wavepart int_year income_pct_w1 income_pct_w2 income_pct_w4 income_pct_w5 income_pct_w6 income_pct_w8
+
+foreach var of varlist hc012_ hc002_mod iadlza adla mobilityind co007_ ep005_ recall_1 female mar_stat hhsize ch001_ thinc_m eduyears_mod sphus chronic_mod casp {
+	replace `var' = . if `var' == -15 | `var' == -10 | `var' == -12 | `var' == -13 | `var' == -16 | `var' == -9 | `var' == -3
+}
+
+egen agegrp = cut(age), at(25 45 55 65 75 85 105)
+egen incomegrp = cut(thinc_m), at(0 5000 10000 20000 30000 40000 50000 70000 90000 110000)
+
+save mydata, replace
+
+*filter for Spain:
+keep if country == 15
+
+save mydata_Spain_all, replace
+
+**************************************************************************************************************************************************************
+* Question 1: Describe the dataset, sample design and representativeness (all waves)
+**************************************************************************************************************************************************************
+clear
+use "mydata_Spain_all"
+
+** Sampling design: Method used to select the sample
+
+* Sample size and sample unit: Total of individuals, households and couples interviewed: 
+count if !missing(mergeid) 
+display "Number of individuals: " r(N)
+
+by hhid, sort: gen n_hh = _n == 1
+count if n_hh == 1
+display "Number of households (considering individuals that are separated): " r(N)
+*n_hh equals to 1 if it is the first occurence of the observation in the sample, 0 otherwise.
+ 
+by coupleid, sort: gen n_couple = _n == 1
+count if n_couple == 1
+display "Number of couples: " r(N)-1
+*Same process than for n_hh
+*I substract 1 to get rid of the first individual for which coupleid is empty (then who is single). 
+*The other single individuals are counted are 0, then are not considered in the sum. 
+
+**************************************************************************************************************************************************************
+* Descriptive statistics: main variables (household incomme, gender, age, employment...) and number of observations. 
+**************************************************************************************************************************************************************
+use "mydata_Spain_all.dta", clear
+global tables "H:\Measurement Issues\easySHARE release 8"
+
+* Summary statistics (all waves combined): 
+
+keep age ep005_ female mar_stat hhsize ch001_ thinc_m eduyears_mod sphus chronic_mod casp wave
+
+global dstat "age female mar_stat hhsize ch001_ thinc_m eduyears_mod sphus chronic_mod casp"
+eststo clear
+eststo Allwaves: estpost sum $dstat
+esttab Allwaves, varwidth(66) cells((mean(fmt(2)) sd(fmt(2)) min(fmt(0)) max(fmt(0))))title("All waves: Descriptive statistics") label replace
+
+* Summary statistics for wave 7: 
+
+eststo clear
+eststo Wave7: estpost sum $dstat if wave == 7 ,d
+esttab Wave7, varwidth(66) cells((mean(fmt(2)) sd(fmt(2)) min(fmt(0)) max(fmt(0))))title("Wave 7: Descriptive statistics") label replace
+*The results are different than the ones obtained when computing the statistic of each variable seperatly, because the sample is smaller, after deleting the missing values. 
+ 
+*Because employment (ep005_) is a categorical variable, I cannot include it in the descriptive statistics and compute its distribution separatly.
+
+* Distribution of employment 
+tab ep005_
+count if ep005_ == 1
+display "Number of retirees: " r(N)
+
+**************************************************************************************************************************************************************
+* Question 2 a) (only wave 7): Graph the average household income in your country of reference for wave 7. Choose 2 other countries in the database and report the average income 
+*in each of the two countries for the same wave. Can you rank the three countries in terms of income level? Discuss the statistical significance of the ranking.
+**************************************************************************************************************************************************************
+
+clear
+use "mydata.dta", clear
+
+*filter for wave 7:
+keep if wave == 7
+
+*filter for countries: Spain (15), France (17) and Italy (16): 
+keep if inlist(country, 16, 15, 17)
+save mydata_3, replace
+
+**************************************************************************************************************************************************************
+* Graphical representation: Average household income per country
+
+clear
+use "mydata_3.dta", clear
+
+gen inc_spain = thinc_m if country == 15
+gen inc_france = thinc_m if country == 17
+gen inc_italy = thinc_m if country == 16
+save mydata_3, replace
+
+graph bar (mean) inc_spain inc_france inc_italy, bargap(10) legend(label(1 "Spain") label(2 "France") label(3 "Italy")) ///
+title("Average household income per country") ///
+saving(Av_hhinc_3.gph , replace) ///
+ytitle("Household income")
+
+graph hbox inc_spain inc_france inc_italy, bargap(10) legend(label(1 "Spain") label(2 "France") label(3 "Italy")) ///
+title("Distribution of household income (with outliner)") ///
+saving(Box_hhinc_3.gph , replace) /// 
+ytitle("Household income")
+
+keep if inc_spain < 220000 | inc_france < 150000 | inc_italy < 150000
+graph hbox inc_spain inc_france inc_italy, bargap(10) legend(label(1 "Spain") label(2 "France") label(3 "Italy")) ///
+title("Distribution of household income (without outliner)") ///
+saving(reBox_hhinc_3.gph , replace) ///
+yscale(range(0 150000)) ytitle("Household income")
+
+graph combine Box_hhinc_3.gph reBox_hhinc_3.gph, rows(2)
+
+*An relevant point is to observe the variation in income withtin each country;
+*All 3 countries have a minimum household income at 0, but the number of the households at this level differ between the countries:
+clear
+use "mydata_3", clear
+keep if country == 17
+save mydata_France, replace
+
+gen hh0 = (thinc_m == 0)
+table (hh0) (country)
+*Italy has 38 households earning no income, Spain 15 and France only 1. 
+
+*Limitations: We must take into account, as we saw with Spain, that the sample is not representative 
+*of the country's population, especially in terms of age and employment status. 
+tab ep005_
+
+clear
+use "mydata_3.dta", clear
+tab ep005_
+save mydata_Italy, replace
+
+**************************************************************************************************************************************************************
+* Question 2 b) (only Spain): Propose three different measures of income inequality. Discuss what are the pros and cons of each measure.
+**************************************************************************************************************************************************************
+clear
+use "mydata_Spain_all", clear
+
+keep if wave == 7
+save mydata_Spain, replace
+
+* Gini coefficient - Atkinson index - Percentile ratios: 
+replace thinc_m = 0.01 if thinc_m == 0
+*I replace the null values by a close value to ensure that these values are considered in the computations, without changing the results. 
+
+ineqdeco thinc_m
+*calculates Percentile Ratios, Gini, Atkinson 
+
+glcurve thinc_m, lorenz plot(function y=x, range(0 1)) ///
+title("Lorenz Curve of Spain") ///
+ytitle("Cumulative proportion of income") ///
+xtitle("Cumulative population share")
+
+**************************************************************************************************************************************************************
+* Question 2 c): Propose three different measures of poverty and compute them in your country of reference.
+**************************************************************************************************************************************************************
+clear
+use "mydata_Spain", clear
+
+* Measure of relative poverty: headcount index
+
+bysort hhid : gen in_hh = _N
+replace thinc_m = thinc_m/in_hh
+summarize thinc_m, d
+*median of income = 9801.646
+
+gen poverty_line = 9801.646*0.6
+gen headcount = 0
+replace headcount = 1 if thinc_m < poverty_line
+replace headcount = . if missing(thinc_m)
+save mydata_Spain, replace
+
+* Measure of relative poverty: poverty gap
+
+drop if headcount == 0
+summarize thinc_m
+gen poverty_gap = 3251.436/poverty_line
+
+* Measure of subjective poverty
+
+tab co007_ ep005_, column
+
+**************************************************************************************************************************************************************
+* Question 3 a): Propose a measure of health inequality at the individual level.
+**************************************************************************************************************************************************************
+clear
+use "mydata_Spain", clear
+
+keep if age > 65 | age == 65
+tabulate sphus headcount, summarize(sphus) nostandard
+tabulate sphus co007_, summarize(sphus) nostandard
+
+clear
+use "mydata_Spain", clear
+
+keep if age < 65
+tabulate sphus headcount, summarize(sphus) nostandard
+tabulate sphus co007_, summarize(sphus) nostandard
+
+**************************************************************************************************************************************************************
+* Question 3 b): Econometric model
+**************************************************************************************************************************************************************
+clear
+use "mydata_Spain", clear
+gen employed = 0
+replace employed = 1 if ep005_ == 2
+
+gen financial_difficulty = 0
+replace financial_difficulty = 1 if co007_ == 1 | co007_ == 2
+save mydata_Spain, replace
+
+keep if age < 65
+regress sphus female financial_difficulty eduyears_mod employed age, noconstant
+*sphus = categorical variable
+*inverse = lower is better
+
+use "mydata_Spain", clear
+
+keep if age > 65 | age == 65
+regress sphus female financial_difficulty eduyears_mod age, noconstant
