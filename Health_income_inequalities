@@ -205,23 +205,15 @@ tabulate sphus headcount, summarize(sphus) nostandard
 tabulate sphus co007_, summarize(sphus) nostandard
 
 **************************************************************************************************************************************************************
-* Question 3 b): Econometric model
+* Question 3 b): Econometric model: ordered probit model
 **************************************************************************************************************************************************************
 clear
 use "mydata_Spain", clear
-gen employed = 0
-replace employed = 1 if ep005_ == 2
-
-gen financial_difficulty = 0
-replace financial_difficulty = 1 if co007_ == 1 | co007_ == 2
-save mydata_Spain, replace
-
-keep if age < 65
-regress sphus female financial_difficulty eduyears_mod employed age, noconstant
+oprobit sphus female financial_difficulty eduyears_mod employed age
 *sphus = categorical variable
 *inverse = lower is better
 
 use "mydata_Spain", clear
 
 keep if age > 65 | age == 65
-regress sphus female financial_difficulty eduyears_mod age, noconstant
+oprobit sphus female financial_difficulty eduyears_mod age
