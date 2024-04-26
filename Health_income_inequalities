@@ -80,7 +80,6 @@ display "Number of retirees: " r(N)
 * Question 2 a) (only wave 7): Graph the average household income in your country of reference for wave 7. Choose 2 other countries in the database and report the average income 
 *in each of the two countries for the same wave. Can you rank the three countries in terms of income level? Discuss the statistical significance of the ranking.
 **************************************************************************************************************************************************************
-
 clear
 use "mydata.dta", clear
 
@@ -133,12 +132,10 @@ table (hh0) (country)
 
 *Limitations: We must take into account, as we saw with Spain, that the sample is not representative 
 *of the country's population, especially in terms of age and employment status. 
-tab ep005_
-
 clear
 use "mydata_3.dta", clear
+keep if country == 17
 tab ep005_
-save mydata_Italy, replace
 
 **************************************************************************************************************************************************************
 * Question 2 b) (only Spain): Propose three different measures of income inequality. Discuss what are the pros and cons of each measure.
@@ -228,174 +225,3 @@ use "mydata_Spain", clear
 
 keep if age > 65 | age == 65
 regress sphus female financial_difficulty eduyears_mod age, noconstant
-
-
-
-
-*** Brouillon
-
-** Code for Spain:
-*country & language: 15
-*year of the interview: 2017
-
-** Missing codes: 
-* -15 : no information (missing values not explained by filetring or questionnaire design)
-* -12 : don't know/refusal
-* -13 : not asked in this wave
-* -10 : SHARELIFE interview
-
-* Dataset for Spain: 
-count
-display "Number of observations: " r(N)
-
-di c(k)
-display "Number of variables: " r(N)
-
-*********************************************************************************************************************
-* Deleting missing values
-
-ds, has(type numeric)
-*I delete all the variables including a missing value.
-foreach var of varlist `r(varlist)' {
-	replace `var' = . if `var' == -15 | `var' == -10 | `var' == -12 | `var' == -13 | `var' == -16 | `var' == -9
-}
-
-*********************************************************************************************************************
-* Distribution of gender
-summarize female
-count if female == 1
-display "Number of women: " r(N) " and number of men: " 4,704-r(N)
-*The sample is composed of 58.17% women (2,633 persons) and 49.64% of men (2,071 persons). 
-
-* Distribution of age
-generate age_short = round(age, 2)
-summarize age_short
-hist age_short, freq title("Distribution of the age in the sample")
-drop age_short
-
-* Distribution of household income
-drop if thinc_m == -10
-drop if thinc_m == -13
-summarize thinc_m
-hist thinc_m, freq title("Distribution of the household income in the sample")
-*I did not consider the individuals with the missing error (- 10 and -13), which indicates the participant has already answer this question in the wave 3. 
-*I delete the highest variable, which is an outliner, to have a better representation of the income distribution. 
-
-use "mydata_Spain_all.dta", clear
-
-* Distribution of employment 
-drop if ep005_ == -15
-drop if ep005_ == -12
-tab ep005_
-count if ep005_ == 1
-display "Number of retirees: " r(N)
-*53.1% of the individuals in the sample are retired (2,454 persons)
-*17.8% are employed or self-employed (822 persons). 
-*19.6% are homemaker (906 persons). 
-
-use "mydata_Spain_all.dta", clear
-
-* Distribution of health
-drop if sphus == -12
-drop if sphus == -15
-tab sphus
-*35% of the participants describe their health as "good", 28% as "fair", and 16% as "poor". 
-hist sphus, freq title("Distribution of the self-perceived health status")
-
-use "mydata_Spain_all.dta", clear
-
-* Distribution of well-being and quality of life
-drop if casp == -15
-hist casp, freq title("Distribution of the quality of life and well-being")
-summarize casp
-*The average measure of the quality of life and well-being is 36.12, with the mimnimum at 14 and the maximum at 48.
-
-************************************************************************************************************************
-* Average household income: Spain
-
-clear
-use "mydata_Spain_all.dta"
-
-*filter for wave 7:
-keep if wave == 7
-save mydata_Spain, replace
-
-foreach var of varlist thinc_m {
-    drop if `var' == -15 | `var' == -10 | `var' == -12 | `var' == -13 | `var' == -16 | `var' == -9
-}
-summarize thinc_m
-hist thinc_m, freq title("Distribution of the household income in Spain") ///
-saving(av_hh_inc_spain.gph , replace)
-*Average household income for Spain: 18,863.49 (with 1,280 observations). 
-*Standard deviation (19,412.52), minimum (0) and maximum (516,154.9).
-
-* Average household income: France
-
-clear
-use "mydata_3.dta"
-keep if country == 17
-save mydata_France, replace
-
-foreach var of varlist thinc_m {
-    drop if `var' == -15 | `var' == -10 | `var' == -12 | `var' == -13 | `var' == -16 | `var' == -9
-}
-summarize thinc_m
-hist thinc_m, freq title("Distribution of the household income in France") ///
-saving(av_hh_inc_france.gph , replace)
-*Average household income for France: 34,107.13 (with 1,143 obervations).
-*Standard deviation (19,878.89), minimum (0) and maximum (202,327.4). 
-
-* Average household income: Italy
-
-clear
-use "mydata_3.dta"
-keep if country == 16
-save mydata_Italy, replace
-
-foreach var of varlist thinc_m {
-    drop if `var' == -15 | `var' == -10 | `var' == -12 | `var' == -13 | `var' == -16 | `var' == -9
-}
-summarize thinc_m
-hist thinc_m, freq title("Distribution of the household income in Italy") ///
-saving(av_hh_inc_italy.gph , replace)
-*Average household income for Italy: 20,196.21 (with 1,568 obervations).
-*Standard deviation (13,193.03), minimum (0) and maximum (135,517.2). 
-
-graph combine av_hh_inc_spain av_hh_inc_france av_hh_inc_italy, rows(1)
-
-*******************************************************************************************************************
-*Limitations: We must take into account, as we saw with Spain, that the sample is not representative of the country's population, especially in terms of age and employment status. 
-clear 
-use "mydata_France.dta"
-foreach var of varlist ep005_ {
-    drop if `var' == -15 | `var' == -10 | `var' == -12 | `var' == -13 | `var' == -16 | `var' == -9
-}
-tab ep005_
-*For France, 71% of the participants are retirees, so the sample represents the same bias than Spain. 
-*Does having relatively more retirees in the sample level up the average household income for France? 
-tabulate (ep005_) (incomegrp), row
-*We cannot come to this conclusion with the precedent table, as retirees seems to be in the average and are not overly represented in the higher income levels. 
-
-**************************************************************************************************************
-* Gini coefficients and Lorenz curves: 3 countries
-
-clear
-use "mydata_3", clear
-replace inc_spain = 0.01 if inc_spain == 0
-replace inc_france = 0.01 if inc_france == 0
-replace inc_italy = 0.01 if inc_italy == 0
-
-glcurve inc_spain, pvar(p1) glvar(gl_spain) lorenz nograph
-glcurve inc_france, pvar(p2) glvar(gl_france) lorenz nograph
-glcurve inc_italy, pvar(p3) glvar(gl_italy) lorenz nograph
-
-twoway (line gl_spain p1, sort) (line gl_france p2, sort) (line gl_italy p3, sort) (function y=x, range(0 1)) ///
-, aspect(1) xtitle("Cumulative population share, p") ///
-title("Lorenz Curves") ///
-ytitle("Cumulative proportion of income") ///
-xtitle("Cumulative population share") ///
-saving(Lorenz_curves_3.gph , replace) ///
-legend(label(1 "Spain") label(2 "France") label(3 "Italy") label(4 "perfect equality line"))
-ineqdeco inc_france
-ineqdeco inc_italy
-
