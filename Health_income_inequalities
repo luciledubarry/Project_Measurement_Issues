@@ -217,9 +217,12 @@ save mydata_Spain, replace
 
 keep if age < 65
 oprobit sphus female financial_difficulty eduyears_mod employed age
+margins, dydx(*) predict(xb)
 *sphus = categorical variable
 *inverse = lower is better
 
 use "mydata_Spain", clear
+
 keep if age > 65 | age == 65
 oprobit sphus female financial_difficulty eduyears_mod age
+margins, dydx(*) predict(xb)
